@@ -1,0 +1,39 @@
+---
+- name: app setup
+  hosts: all
+  gather_facts: no
+  become: yes
+
+  vars:
+    version: v1
+  tasks:
+    - name: install packages
+      apt:
+        name: "{{ item }}"
+        state: present
+        update_cache: yes
+      loop: 
+        - docker.io
+        - python3-pip
+    - name: install pip for docker
+      pip:
+        name: docker
+    - name: configure docker
+      copy:
+        content: '{ "userland-proxy": false }'
+        dest: /etc/docker/daemon.json
+      notify: restart docker
+    - name: docker hello
+      docker_container:
+        name: "hello-{{ version }}"
+        image: "maniaque/hello:{{ version }}"
+        restart_policy: unless-stopped
+        container_default_behavior: compatibility
+        published_ports:
+          - 80:80
+
+  handlers:
+    - name: restart docker
+      systemd:
+        name: docker
+        state: restarted
